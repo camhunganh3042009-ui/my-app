@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thought Network</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1a3e 100%);
+            color: #e0e0ff;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .control-panel {
+            width: 320px;
+            padding: 24px;
+            background: rgba(15, 15, 35, 0.95);
+            border-right: 1px solid rgba(100, 200, 255, 0.2);
+            overflow-y: auto;
+            box-shadow: -2px 0 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #00d4ff, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .section {
+            margin-bottom: 24px;
+        }
+        
+        .section-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #64b5f6;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+        
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(100, 200, 255, 0.3);
+            color: #e0e0ff;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 8px;
+            transition: all 0.3s;
+        }
+        
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #00d4ff;
+            background: rgba(100, 200, 255, 0.1);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+        }
+        
+        textarea {
+            resize: none;
+            height: 60px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, #00d4ff, #00b8ff);
+            border: none;
+            color: #000;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 212, 255, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.secondary {
+            background: rgba(100, 200, 255, 0.2);
+            color: #64b5f6;
+            margin-top: 8px;
+        }
+        
+        button.secondary:hover {
+            background: rgba(100, 200, 255, 0.3);
+        }
+        
+        .node-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 8px;
+        }
+        
+        .node-item {
+            padding: 8px;
+            background: rgba(100, 200, 255, 0.1);
+            border-left: 3px solid #00d4ff;
+            margin-bottom: 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .node-item:hover {
+            background: rgba(100, 200, 255, 0.2);
+        }
+        
+        .node-item .count {
+            font-size: 11px;
+            color: #a78bfa;
+            background: rgba(167, 139, 250, 0.2);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .stat-box {
+            background: rgba(100, 200, 255, 0.1);
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid rgba(100, 200, 255, 0.2);
+        }
+        
+        .stat-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: #a78bfa;
+            margin-top: 4px;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1a3e 100%);
+        }
+        
+        svg {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+        
+        svg.grabbing {
+            cursor: grabbing;
+        }
+        
+        .node {
+            cursor: pointer;
+            transition: r 0.3s;
+        }
+        
+        .node:hover {
+            filter: brightness(1.3);
+        }
+        
+        .node.highlighted {
+            filter: brightness(1.5) drop-shadow(0 0 20px #00d4ff);
+        }
+        
+        .link {
+            stroke: rgba(100, 200, 255, 0.4);
+            stroke-width: 1.5;
+            transition: stroke 0.3s;
+            pointer-events: none;
+        }
+        
+        .link.highlighted {
+            stroke: #00d4ff;
+            stroke-width: 2.5;
+            filter: drop-shadow(0 0 8px #00d4ff);
+        }
+        
+        .node-label {
+            pointer-events: none;
+            font-size: 11px;
+            text-anchor: middle;
+            fill: #e0e0ff;
+            font-weight: 500;
+        }
+        
+        .search-input {
+            width: 100%;
+        }
+        
+        .instructions {
+            background: rgba(167, 139, 250, 0.1);
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #c5b0ff;
+            line-height: 1.6;
+            margin-top: 16px;
+            border-left: 3px solid #a78bfa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="control-panel">
+            <div class="title">⚡ Thought Network</div>
+            
+            <div class="section">
+                <div class="section-title">Add New Idea</div>
+                <input type="text" id="ideaInput" placeholder="Enter your idea..." />
+                <textarea id="notesInput" placeholder="Add notes (optional)..."></textarea>
+                <button onclick="addIdea()">+ Add Idea</button>
+                <button class="secondary" onclick="clearNetwork()">Clear All</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Search Ideas</div>
+                <input type="text" class="search-input" id="searchInput" placeholder="Filter ideas..." onkeyup="searchNodes()" />
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Network Stats</div>
+                <div class="stats">
+                    <div class="stat-box">
+                        <div class="stat-number" id="nodeCount">0</div>
+                        <div class="stat-label">Ideas</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" id="linkCount">0</div>
+                        <div class="stat-label">Links</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Ideas in Network</div>
+                <div class="node-list" id="nodeList"></div>
+            </div>
+            
+            <div class="instructions">
+                <strong>💡 How to use:</strong><br/>
+                • Drag nodes tự do ở bất kỳ đâu<br/>
+                • Click 2 node để kết nối<br/>
+                • Right-click để xóa<br/>
+                • Search để filter ý tưởng
+            </div>
+        </div>
+        
+        <div class="canvas-container">
+            <svg id="canvas"></svg>
+        </div>
+    </div>
+    
+    <script>
+        // Data structure
+        const networkData = {
+            nodes: [],
+            links: []
+        };
+        
+        let selectedNodes = [];
+        let isDragging = false;
+        
+        // Initialize
+        loadFromStorage();
+        updateVisualization();
+        updateStats();
+        
+        function addIdea() {
+            const input = document.getElementById('ideaInput');
+            const notes = document.getElementById('notesInput');
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            const node = {
+                id: `node-${Date.now()}`,
+                text: text,
+                notes: notes.value.trim(),
+                x: Math.random() * 600 + 100,
+                y: Math.random() * 400 + 100
+            };
+            
+            networkData.nodes.push(node);
+            input.value = '';
+            notes.value = '';
+            
+            saveToStorage();
+            updateVisualization();
+            updateStats();
+        }
+        
+        function updateVisualization() {
+            const svg = d3.select('#canvas');
+            const container = svg.append('g').attr('class', 'container');
+            
+            // Draw links
+            const link = container.selectAll('.link')
+                .data(networkData.links, d => `${d.source}-${d.target}`)
+                .join('line')
+                .attr('class', 'link')
+                .attr('x1', d => {
+                    const node = networkData.nodes.find(n => n.id === d.source);
+                    return node ? node.x : 0;
+                })
+                .attr('y1', d => {
+                    const node = networkData.nodes.find(n => n.id === d.source);
+                    return node ? node.y : 0;
+                })
+                .attr('x2', d => {
+                    const node = networkData.nodes.find(n => n.id === d.target);
+                    return node ? node.x : 0;
+                })
+                .attr('y2', d => {
+                    const node = networkData.nodes.find(n => n.id === d.target);
+                    return node ? node.y : 0;
+                });
+            
+            // Draw nodes
+            const node = container.selectAll('.node')
+                .data(networkData.nodes, d => d.id)
+                .join('circle')
+                .attr('class', 'node')
+                .attr('cx', d => d.x)
+                .attr('cy', d => d.y)
+                .attr('r', d => 8 + getConnectionCount(d.id) * 2)
+                .attr('fill', (d, i) => {
+                    const hues = ['#00d4ff', '#a78bfa', '#00f5ff', '#c084fc'];
+                    return hues[i % hues.length];
+                })
+                .attr('filter', 'drop-shadow(0 0 8px rgba(0, 212, 255, 0.6))')
+                .call(d3.drag()
+                    .on('start', dragStarted)
+                    .on('drag', dragged)
+                    .on('end', dragEnded))
+                .on('click', (e, d) => {
+                    e.stopPropagation();
+                    highlightNode(d, e);
+                })
+                .on('contextmenu', (e, d) => {
+                    e.preventDefault();
+                    deleteNode(e, d);
+                });
+            
+            // Add labels
+            const label = container.selectAll('.node-label')
+                .data(networkData.nodes, d => d.id)
+                .join('text')
+                .attr('class', 'node-label')
+                .attr('x', d => d.x)
+                .attr('y', d => d.y)
+                .attr('dy', '.35em')
+                .text(d => d.text.substring(0, 15));
+            
+            // Zoom
+            svg.call(d3.zoom()
+                .scaleExtent([0.5, 3])
+                .on('zoom', (e) => container.attr('transform', e.transform)));
+            
+            function dragStarted(e, d) {
+                isDragging = true;
+                svg.classed('grabbing', true);
+            }
+            
+            function dragged(e, d) {
+                d.x = e.x;
+                d.y = e.y;
+                
+                // Update node position
+                node.attr('cx', dd => dd.x).attr('cy', dd => dd.y);
+                label.attr('x', dd => dd.x).attr('y', dd => dd.y);
+                
+                // Update link positions
+                link
+                    .attr('x1', dd => {
+                        const n = networkData.nodes.find(node => node.id === dd.source);
+                        return n ? n.x : 0;
+                    })
+                    .attr('y1', dd => {
+                        const n = networkData.nodes.find(node => node.id === dd.source);
+                        return n ? n.y : 0;
+                    })
+                    .attr('x2', dd => {
+                        const n = networkData.nodes.find(node => node.id === dd.target);
+                        return n ? n.x : 0;
+                    })
+                    .attr('y2', dd => {
+                        const n = networkData.nodes.find(node => node.id === dd.target);
+                        return n ? n.y : 0;
+                    });
+            }
+            
+            function dragEnded(e, d) {
+                isDragging = false;
+                svg.classed('grabbing', false);
+                saveToStorage();
+            }
+        }
+        
+        function getConnectionCount(nodeId) {
+            return networkData.links.filter(l => 
+                l.source === nodeId || l.target === nodeId
+            ).length;
+        }
+        
+        function highlightNode(d, e) {
+            if (selectedNodes.includes(d.id)) {
+                selectedNodes = [];
+                d3.selectAll('.node').classed('highlighted', false);
+                d3.selectAll('.link').classed('highlighted', false);
+            } else if (selectedNodes.length < 2) {
+                selectedNodes.push(d.id);
+                
+                if (selectedNodes.length === 2) {
+                    // Add connection
+                    const existing = networkData.links.find(l => 
+                        (l.source === selectedNodes[0] && l.target === selectedNodes[1]) ||
+                        (l.source === selectedNodes[1] && l.target === selectedNodes[0])
+                    );
+                    
+                    if (!existing) {
+                        networkData.links.push({
+                            source: selectedNodes[0],
+                            target: selectedNodes[1]
+                        });
+                        saveToStorage();
+                    }
+                    selectedNodes = [];
+                    d3.select('#canvas').selectAll('*').remove();
+                    updateVisualization();
+                } else {
+                    updateHighlight();
+                }
+            }
+        }
+        
+        function updateHighlight() {
+            d3.selectAll('.node').classed('highlighted', d => selectedNodes.includes(d.id));
+            d3.selectAll('.link').classed('highlighted', l => 
+                selectedNodes.includes(l.source) || selectedNodes.includes(l.target)
+            );
+        }
+        
+        function deleteNode(e, d) {
+            e.preventDefault();
+            networkData.nodes = networkData.nodes.filter(n => n.id !== d.id);
+            networkData.links = networkData.links.filter(l => 
+                l.source !== d.id && l.target !== d.id
+            );
+            saveToStorage();
+            d3.select('#canvas').selectAll('*').remove();
+            updateVisualization();
+            updateStats();
+        }
+        
+        function searchNodes() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            d3.selectAll('.node').style('opacity', d => 
+                d.text.toLowerCase().includes(query) ? 1 : 0.2
+            );
+            d3.selectAll('.node-label').style('opacity', d => 
+                d.text.toLowerCase().includes(query) ? 1 : 0.2
+            );
+        }
+        
+        function updateStats() {
+            document.getElementById('nodeCount').textContent = networkData.nodes.length;
+            document.getElementById('linkCount').textContent = networkData.links.length;
+            updateNodeList();
+        }
+        
+        function updateNodeList() {
+            const list = document.getElementById('nodeList');
+            list.innerHTML = networkData.nodes
+                .map(n => `<div class="node-item" onclick="document.getElementById('searchInput').value='${n.text}'; searchNodes();">
+                    <span>${n.text.substring(0, 20)}</span>
+                    <span class="count">${getConnectionCount(n.id)}</span>
+                </div>`)
+                .join('');
+        }
+        
+        function clearNetwork() {
+            if (confirm('Xóa hết tất cả ý tưởng?')) {
+                networkData.nodes = [];
+                networkData.links = [];
+                selectedNodes = [];
+                saveToStorage();
+                d3.select('#canvas').selectAll('*').remove();
+                updateVisualization();
+                updateStats();
+            }
+        }
+        
+        function saveToStorage() {
+            localStorage.setItem('thoughtNetwork', JSON.stringify(networkData));
+        }
+        
+        function loadFromStorage() {
+            const saved = localStorage.getItem('thoughtNetwork');
+            if (saved) {
+                const data = JSON.parse(saved);
+                networkData.nodes = data.nodes;
+                networkData.links = data.links;
+            }
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && document.activeElement.id === 'ideaInput') {
+                addIdea();
+            }
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            d3.select('#canvas').selectAll('*').remove();
+            updateVisualization();
+        });
+    </script>
+</body>
+</html>
